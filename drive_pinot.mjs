@@ -39,8 +39,9 @@ async function selectAllDelete(page, codeMirrorTextArea) {
 }
 
 async function typeQuery(page, query, initialHeight) {
-    for(let i = 0; i < query.length; i++) {
-        const ch = query.charAt(i);
+    const cleanQuery = query.replace(/^\s+/gm, '');
+    for(let i = 0; i < cleanQuery.length; i++) {
+        const ch = cleanQuery.charAt(i);
         await page.evaluate((ch) => {
             return new Promise((resolve) => {
                 const codeMirror = document.querySelector('.CodeMirror').CodeMirror;
@@ -49,7 +50,7 @@ async function typeQuery(page, query, initialHeight) {
             });
         }, ch);
         // Resize the CodeMirror instance after each character is typed
-        await resizeCodeMirror(page, query.substring(0, i+1), initialHeight);
+        await resizeCodeMirror(page, cleanQuery.substring(0, i+1), initialHeight);
     }
 }
 
@@ -107,13 +108,15 @@ async function getInitialHeight(page) {
     });
 }
 
-async function getDistanceToBottom(page) {
-    return await page.evaluate(() => {
+async function getDistanceToBottom(page, zoomLevel) {
+    return await page.evaluate((zoomLevel) => {
+        const zoomFactor = parseInt(zoomLevel) / 100;
         const element = document.querySelector('.MuiPaper-root.MuiAccordion-root.Mui-expanded');
         const elementBottom = element.getBoundingClientRect().bottom;
-        return elementBottom - window.scrollY;
-    });
+        return (elementBottom - window.scrollY) * zoomFactor;
+    }, zoomLevel);
 }
+
 
 async function launchBrowseAndOpenPage({url, zoomLevel="250%"}) {
     const browser = await puppeteer.launch({
@@ -122,8 +125,10 @@ async function launchBrowseAndOpenPage({url, zoomLevel="250%"}) {
         ignoreDefaultArgs: ['--enable-automation'], // exclude this switch
         defaultViewport: null, // required for --window-size
         args: [
-          '--start-maximized', // set the window size
+        //   '--start-maximized', // set the window size          
           '--disable-infobars',
+          '--window-size=3840,2160', 
+          '--window-position=-1080,0' 
         ],
       });
     
@@ -136,45 +141,46 @@ async function launchBrowseAndOpenPage({url, zoomLevel="250%"}) {
     
       const [initPage] = await browser.pages();
       await initPage.close();
+
+      await page.addStyleTag({content: `
+      div.CodeMirror-cursors {
+          visibility: visible !important;
+      }
+
+      .CodeMirror-cursor {
+          border-left: 1px solid black;
+          animation: blink 1s step-end infinite;
+      }
+
+      @keyframes blink {
+          50% { visibility: hidden; }
+      }
+
+  `});    
     
       return { browser, page };
 }
 
 async function run() {
-    const { browser, page } = await launchBrowseAndOpenPage({url: 'http://localhost:9000/#/query', zoomLevel: "125%"});
+    const zoomLevel = 250;
+    const { browser, page } = await launchBrowseAndOpenPage({url: 'http://localhost:9000/#/query', zoomLevel: `${zoomLevel}%`});
 
-    await new Promise(r => setTimeout(r, 1000))
+    await new Promise(r => setTimeout(r, 3000))
 
     const codeMirrorTextArea = await page.waitForSelector('.CodeMirror');
-    await page.addStyleTag({content: `
-        div.CodeMirror-cursors {
-            visibility: visible !important;
-        }
 
-        .CodeMirror-cursor {
-            border-left: 1px solid black;
-            animation: blink 1s step-end infinite;
-        }
-
-        @keyframes blink {
-            50% { visibility: hidden; }
-        }
-
-    `});
+    await codeMirrorTextArea.click();
 
     const initialHeight = await getInitialHeight(page);
-    console.log(initialHeight);
 
     // Query 1
     await selectAllDelete(page, codeMirrorTextArea);
     let textToType = `select * 
-    from stocks`.replace(/^\s+/gm, '');
+    from stocks`;
     await typeQuery(page, textToType);
     await runQuery(page);
     await new Promise(r => setTimeout(r, 1000));     
-
-    console.log(await getDistanceToBottom(page))
-    await scroll(page, await getDistanceToBottom(page), 3);
+    await scroll(page, await getDistanceToBottom(page, zoomLevel), 3);
     await new Promise(r => setTimeout(r, 1000)); 
 
     // Query 2
@@ -182,14 +188,27 @@ async function run() {
     textToType = `select * 
     from stocks 
     where ticker = 'MSFT'
-    order by ts desc
-    limit 10
-    option(skipUpsert=true)`.replace(/^\s+/gm, '');
+    order by ts desc`;
     await typeQuery(page, textToType, initialHeight);
     await runQuery(page);
-    await new Promise(r => setTimeout(r, 1000));     
-    console.log(await getDistanceToBottom(page))
-    await scroll(page, await getDistanceToBottom(page), 3);
+    await new Promise(r => setTimeout(r, 1000)); 
+    await runQuery(page);
+    await new Promise(r => setTimeout(r, 1000)); 
+    await runQuery(page);
+    await new Promise(r => setTimeout(r, 1000)); 
+
+    // Query 3
+    await selectAllDelete(page, codeMirrorTextArea);
+    textToType = `select * 
+    from stocks 
+    where ticker = 'MSFT'
+    order by ts desc
+    limit 10
+    option(skipUpsert=true)`;
+    await typeQuery(page, textToType, initialHeight);
+    await runQuery(page);
+    await new Promise(r => setTimeout(r, 1000));
+    await scroll(page, await getDistanceToBottom(page, zoomLevel), 3);
     await new Promise(r => setTimeout(r, 1000)); 
 
     await browser.close();
