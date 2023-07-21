@@ -1,3 +1,17 @@
 = Driving the Pinot UI
 
 This script is used to simulate doing various actions within the Pinot UI.
+
+== Install dependencies
+
+[source, bash]
+----
+npm i
+----
+
+== Run the simulation 
+
+[source, bash]
+----
+node drive_pinot.mjs
+----
