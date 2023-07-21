@@ -115,27 +115,33 @@ async function getDistanceToBottom(page) {
     });
 }
 
-async function run() {
+async function launchBrowseAndOpenPage({url, zoomLevel="250%"}) {
     const browser = await puppeteer.launch({
         headless: false,
         executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',  // Add your path here
         ignoreDefaultArgs: ['--enable-automation'], // exclude this switch
         defaultViewport: null, // required for --window-size
         args: [
-            '--start-maximized', // set the window size
-            '--disable-infobars',
+          '--start-maximized', // set the window size
+          '--disable-infobars',
         ],
-    });
-    const page = await browser.newPage();    
-    await page.goto('http://localhost:9000/#/query');
-    // await page.evaluate(() => document.body.style.zoom = "250%" );
-    await page.evaluate(() => document.body.style.zoom = "125%" );
+      });
+    
+      const page = await browser.newPage();
+      await page.goto(url);
+      await page.evaluate((zoomLevel) => { document.body.style.zoom = zoomLevel; }, zoomLevel);
+    
+      const cursorScript = await fs.readFile('./cursor.js', 'utf8');
+      await page.evaluate(cursorScript);
+    
+      const [initPage] = await browser.pages();
+      await initPage.close();
+    
+      return { browser, page };
+}
 
-    const cursorScript = await fs.readFile('./cursor.js', 'utf8');
-    await page.evaluate(cursorScript);  
-
-    const [initPage] = await browser.pages();
-    await initPage.close()
+async function run() {
+    const { browser, page } = await launchBrowseAndOpenPage({url: 'http://localhost:9000/#/query', zoomLevel: "125%"});
 
     await new Promise(r => setTimeout(r, 1000))
 
@@ -166,12 +172,6 @@ async function run() {
     await typeQuery(page, textToType);
     await runQuery(page);
     await new Promise(r => setTimeout(r, 1000));     
-
-    let distanceToElementBottom = await page.evaluate(() => {
-        const element = document.querySelector('.MuiPaper-root.MuiAccordion-root.Mui-expanded');
-        const elementBottom = element.getBoundingClientRect().bottom;
-        return elementBottom - window.pageYOffset;
-    });
 
     console.log(await getDistanceToBottom(page))
     await scroll(page, await getDistanceToBottom(page), 3);
