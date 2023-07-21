@@ -1,0 +1,14 @@
+{
+  "name": "drive-pinot",
+  "version": "1.0.0",
+  "description": "= Driving the Pinot UI",
+  "main": "drive_pinot.mjs",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "puppeteer-core": "^20.9.0"
+  }
+}

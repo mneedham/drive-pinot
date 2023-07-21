@@ -1,0 +1,3 @@
+= Driving the Pinot UI
+
+This script is used to simulate doing various actions within the Pinot UI.
