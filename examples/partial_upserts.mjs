@@ -2,7 +2,7 @@ import {
     scroll, launchBrowseAndOpenPage, getInitialHeight,
     selectAllDelete, typeQuery, runQuery, getDistanceToBottom,
     moveToElement, changeCursor
-} from './drive_pinot.mjs'
+} from '../drive_pinot.mjs'
 
 
 async function run() {
