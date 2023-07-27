@@ -1,7 +1,7 @@
 import puppeteer from 'puppeteer-core';
 import { promises as fs } from 'fs';
 
-export async function scroll(page, pixels, wait) {
+export async function scroll(page, pixels, wait=3) {
     const scrollStep = 100;
     const iterations = Math.ceil(pixels / scrollStep);
 
@@ -19,6 +19,28 @@ export async function scroll(page, pixels, wait) {
     }
     await new Promise(r => setTimeout(r, wait * 1000));
 }
+
+export async function scrollJupyter(page, pixels, wait=3) {
+    const scrollStep = 100;
+    const iterations = Math.ceil(pixels / scrollStep);
+
+    const elementHandle = await page.$('div.jp-WindowedPanel-outer'); // Replace this with the selector for your element
+
+    // Scroll down
+    for (let i = 0; i < iterations; i++) {
+        await page.evaluate((el, y) => { el.scrollBy(0, y); }, elementHandle, scrollStep);
+        await new Promise(r => setTimeout(r, 50));
+    }
+    await new Promise(r => setTimeout(r, wait * 1000));
+
+    // Scroll up
+    for (let i = 0; i < iterations; i++) {
+        await page.evaluate((el, y) => { el.scrollBy(0, -y); }, elementHandle, scrollStep);
+        await new Promise(r => setTimeout(r, 50));
+    }
+    await new Promise(r => setTimeout(r, wait * 1000));
+}
+
 
 export async function moveToElement(page, element, {speed=3, offsetX=0.35, offsetY=0.20} = {}) {
     await page.evaluate(async (element, speed, offsetX, offsetY) => {
