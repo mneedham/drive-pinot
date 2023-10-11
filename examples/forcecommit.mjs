@@ -56,12 +56,22 @@ async function run() {
     await typeQuery(page, textToType, initialHeight, {charPause: 20});
     await runQuery(page);
     await new Promise(r => setTimeout(r, 1000));
-    await scroll(page, 1000, 3);
+    await scroll(page, 800, 3);
     await new Promise(r => setTimeout(r, 1000)); 
+
+    // await runQuery(page);
+    // await new Promise(r => setTimeout(r, 1000));
+    // await scroll(page, 1000, 3);
+    // await new Promise(r => setTimeout(r, 3000)); 
 
     // Pause here until signal received
     console.log("Waiting for /continue signal to proceed...");
     await waitForSignal();
+
+    await runQuery(page);
+    await new Promise(r => setTimeout(r, 1000));
+    await scroll(page, 1000, 3);
+    await new Promise(r => setTimeout(r, 3000)); 
 
     await runQuery(page);
     await new Promise(r => setTimeout(r, 1000));
