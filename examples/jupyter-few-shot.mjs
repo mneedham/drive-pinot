@@ -19,11 +19,11 @@ async function run() {
         zoomLevel: `${zoomLevel}%`
     });
 
-    // const normalSpeed = 50;
-    // const fastSpeed = 20;
+    const normalSpeed = 50;
+    const fastSpeed = 20;
 
-    const normalSpeed = 1;
-    const fastSpeed = 0;
+    // const normalSpeed = 1;
+    // const fastSpeed = 0;
         
     await page.waitForSelector('.jp-Notebook');
     await stylePage(page);
@@ -41,7 +41,7 @@ async function run() {
     let code = ``;
 
     await newJupyterCell(page, {type: "markdown"});
-    await typeAndWaitForScroll(page,`## Our dataset
+    await typeAndWaitForScroll(page,`## Our dataset 📋
 We're going to attempt to categorise a bunch of sentences, some of which are questions and others which aren't.`, {delay: fastSpeed});
     await executeCell(page)
     await waitForQueryToFinish(page);
@@ -59,10 +59,10 @@ sentences`;
     await typeAndWaitForScroll(page,code, {delay: normalSpeed});
     await executeCell(page)
     await waitForQueryToFinish(page);
-    await scrollJupyterDown(page, 350, {n:10, extraPause: 500});
+    await scrollJupyterDown(page, 350, {n:10, extraPause: 1000});
 
     await newJupyterCell(page, {type: "markdown"});
-    await typeAndWaitForScroll(page,`## Are they sentences?
+    await typeAndWaitForScroll(page,`## Are they sentences? 🤔
 Let's see whether our LLM can work out which ones are sentences!`, {delay: fastSpeed});
     await executeCell(page)
     await waitForQueryToFinish(page);
@@ -76,11 +76,11 @@ from termcolor import colored`;
     await waitForQueryToFinish(page);
 
     await newJupyterCell(page);
-    code = `def handle_result(is_sentence, llm_answer):
+    code = `def handle_result(sentence, is_sentence, llm_answer):
 result = f"Actual: {str(is_sentence).ljust(5)} LLM: {llm_answer}"
 print(f"{sentence.ljust(60)} {colored(result, 'green' if is_sentence == llm_answer else 'red')}")
 
-def handle_error(is_sentence, ex, llm_says):
+def handle_error(sentence, is_sentence, ex, llm_says):
 result = f"Actual: {str(is_sentence).ljust(5)} LLM: {ex} - {llm_says}"
 print(f"{sentence.ljust(60)} {colored(result, 'red')}")`;
     await typeAndWaitForScroll(page,code, {delay: normalSpeed});
@@ -88,27 +88,151 @@ print(f"{sentence.ljust(60)} {colored(result, 'red')}")`;
     await waitForQueryToFinish(page, {extraPause: 500});
 
     await newJupyterCell(page);
-    code = `base_llama2 = Ollama(model="question-llama2-base")`;
+    code = `def predict_sentences(sentences, model):
+llm_answers=[]
+for sentence, is_sentence in sentences:
+llm_says = model.complete(sentence).text.replace("</s>", "").replace("<s>", "")
+try:
+llm_answer = json.loads(llm_says)
+handle_result(sentence, is_sentence, llm_answer)
+llm_answers.append(llm_answer)
+except json.JSONDecodeError as ex:
+handle_error(sentence, is_sentence, ex, llm_says)
+llm_answers.append(None)
+
+  return llm_answers`;
     await typeAndWaitForScroll(page,code, {delay: normalSpeed});
     await executeCell(page)
     await waitForQueryToFinish(page);
 
     await newJupyterCell(page);
-    code = `llm_answers=[]
-for sentence, is_sentence in sentences:  
-llm_says = base_llama2.complete(sentence).text
-    
-try:
-llm_answer = json.loads(llm_says)
-handle_result(is_sentence, llm_answer)
-llm_answers.append(llm_answer)
-except json.JSONDecodeError as ex:
-handle_error(is_sentence, ex, llm_says)
-llm_answers.append(None)`;
+    code = `base_llama2 = Ollama(model="question-llama2-base")`;
+    await typeAndWaitForScroll(page,code, {delay: normalSpeed});
+    await executeCell(page)
+    await waitForQueryToFinish(page);    
+
+    await newJupyterCell(page);
+    code = `_ = predict_sentences(sentences, base_llama2)`;
     await typeAndWaitForScroll(page,code, {delay: normalSpeed});
     await executeCell(page)
     await waitForQueryToFinish(page);
+    await scrollJupyterDown(page, 700, {n:20, extraPause: 1000});
+    await page.keyboard.type("h");
     
+    await newJupyterCell(page, {type: "markdown"});
+    await typeAndWaitForScroll(page,`## The Few-Shot Prompting Model 🤖
+Let's try again, but this time with the model that's been primed with a few examples.`, {delay: fastSpeed});
+    await executeCell(page)
+    await waitForQueryToFinish(page);
+
+    await newJupyterCell(page);
+    code = `llama2 = Ollama(model="question-llama2")`;
+    await typeAndWaitForScroll(page,code, {delay: normalSpeed});
+    await executeCell(page)
+    await waitForQueryToFinish(page);
+
+    await newJupyterCell(page);
+    code = `llm_answers = predict_sentences(sentences, llama2)`;
+    await typeAndWaitForScroll(page,code, {delay: normalSpeed});
+    await executeCell(page)
+    await waitForQueryToFinish(page);
+    await scrollJupyterDown(page, 300);
+
+    await newJupyterCell(page, {type: "markdown"});
+    await typeAndWaitForScroll(page,`## How well did we do? 🏆🤷‍♀️
+Let's compute some metrics to check how well the model did.`, {delay: fastSpeed});
+    await executeCell(page)
+    await waitForQueryToFinish(page);
+
+    await newJupyterCell(page);
+    code = `from sklearn.metrics import confusion_matrix, precision_score, recall_score`;
+    await typeAndWaitForScroll(page,code, {delay: normalSpeed});
+    await executeCell(page)
+    await waitForQueryToFinish(page);
+
+    await newJupyterCell(page);
+    code = `# tp / (tp + fp) 
+precision_score([s[1] for s in sentences], llm_answers, zero_division=0.0)`;
+    await typeAndWaitForScroll(page,code, {delay: normalSpeed});
+    await executeCell(page)
+    await waitForQueryToFinish(page);
+
+    await newJupyterCell(page);
+    code = `# tp / (tp + fn)
+recall_score([s[1] for s in sentences], llm_answers)`;
+    await typeAndWaitForScroll(page,code, {delay: normalSpeed});
+    await executeCell(page)
+    await waitForQueryToFinish(page);
+
+    await newJupyterCell(page);
+    code = `matrix = confusion_matrix([s[1] for s in sentences], llm_answers)
+matrix`;
+    await typeAndWaitForScroll(page,code, {delay: normalSpeed});
+    await executeCell(page)
+    await waitForQueryToFinish(page);
+
+    await newJupyterCell(page);
+    code = `from plotly_utils import render_confusion_matrix`;
+    await typeAndWaitForScroll(page,code, {delay: normalSpeed});
+    await executeCell(page)
+    await waitForQueryToFinish(page);
+
+    await newJupyterCell(page);
+    code = `render_confusion_matrix(matrix)`;
+    await typeAndWaitForScroll(page,code, {delay: normalSpeed});
+    await executeCell(page)
+    await waitForQueryToFinish(page);
+    await scrollJupyterDown(page, 270);
+
+//     await newJupyterCell(page, {type: "markdown"});
+//     await typeAndWaitForScroll(page,`## Taking Llama2 13B for a spin 🦙🚗 
+// Can we do any better if we use Llama2 13B instead of Llama2 7B?`, {delay: fastSpeed});
+//     await executeCell(page)
+//     await waitForQueryToFinish(page);
+
+//     await newJupyterCell(page);
+//     code = `llama2_13b = Ollama(model="question-llama2-13b")`;
+//     await typeAndWaitForScroll(page,code, {delay: normalSpeed});
+//     await executeCell(page)
+//     await waitForQueryToFinish(page);
+
+//     await newJupyterCell(page);
+//     code = `llm_answers = predict_sentences(sentences, llama2_13b)`;
+//     await typeAndWaitForScroll(page,code, {delay: normalSpeed});
+//     await executeCell(page)
+//     await waitForQueryToFinish(page);
+//     await scrollJupyterDown(page, 300);
+    
+//     await newJupyterCell(page);
+//     code = `precision_score([s[1] for s in sentences], llm_answers, zero_division=0.0)`;
+//     await typeAndWaitForScroll(page,code, {delay: normalSpeed});
+//     await executeCell(page)
+//     await waitForQueryToFinish(page);
+
+//     await newJupyterCell(page);
+//     code = `recall_score([s[1] for s in sentences], llm_answers)`;
+//     await typeAndWaitForScroll(page,code, {delay: normalSpeed});
+//     await executeCell(page)
+//     await waitForQueryToFinish(page);
+
+//     await newJupyterCell(page);
+//     code = `matrix = confusion_matrix([s[1] for s in sentences], llm_answers)
+// matrix`;
+//     await typeAndWaitForScroll(page,code, {delay: normalSpeed});
+//     await executeCell(page)
+//     await waitForQueryToFinish(page);
+    
+//     await newJupyterCell(page);
+//     code = `render_confusion_matrix(matrix)`;
+//     await typeAndWaitForScroll(page,code, {delay: normalSpeed});
+//     await executeCell(page)
+//     await waitForQueryToFinish(page);
+//     await scrollJupyterDown(page, 270);
+
+    // await page.keyboard.press('ArrowDown');
+    // await new Promise(r => setTimeout(r, pause))
+    // await page.keyboard.press('ArrowDown');
+    // await new Promise(r => setTimeout(r, 1000))
 
 //     await newJupyterCell(page);
 //     code = `from langchain.chat_models import ChatOpenAI
@@ -892,3 +1016,48 @@ llm_answers.append(None)`;
 }
 
 run();
+
+
+    // await page.keyboard.press('ArrowUp');
+    // await new Promise(r => setTimeout(r, pause))
+    // await page.keyboard.press('ArrowUp');
+    // await new Promise(r => setTimeout(r, pause))
+
+    // await new Promise(r => setTimeout(r, 1000))
+    // await page.keyboard.type("c");
+    // await new Promise(r => setTimeout(r, 1000))
+
+    // await page.keyboard.press('ArrowDown');
+    // await new Promise(r => setTimeout(r, pause))
+    // await page.keyboard.press('ArrowDown');
+    // await new Promise(r => setTimeout(r, pause))
+
+    // await scrollJupyterDown(page, 300);
+    // await page.keyboard.type("v");
+    // await page.keyboard.type("co");
+    // // await scrollJupyterDown(page, 300);
+
+    // await page.keyboard.press('Enter');
+    // await page.keyboard.press('ArrowDown');
+    // await page.keyboard.press('ArrowDown');
+
+    // await page.keyboard.down("Alt")
+    // await page.keyboard.press('ArrowRight');
+    // await page.keyboard.press('ArrowRight');
+    // await page.keyboard.press('ArrowRight');
+    // await new Promise(r => setTimeout(r, 500))
+    // await page.keyboard.press('Backspace');
+    // await page.keyboard.up("Alt")
+    // await typeAndWaitForScroll(page, "llama2")
+    // await new Promise(r => setTimeout(r, pause))
+    
+    // await page.keyboard.down("Meta")
+    // await page.keyboard.press('ArrowRight');
+    // await page.keyboard.up("Meta")
+
+    // await new Promise(r => setTimeout(r, 500))
+    // await typeAndWaitForScroll(page, `.replace("</s>", "")`)
+
+    // await executeCell(page)
+    // await waitForQueryToFinish(page);
+    // await scrollJupyterDown(page, 300);
