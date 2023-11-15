@@ -326,6 +326,49 @@ export async function typeAndWaitForScroll(page, text, options) {
     }
 }
 
+export async function typeAndWaitForScrollMultiline(page, text, options) {
+    // Split the text into lines
+    const lines = text.split('\n');
+
+    // Trigger the initial scroll
+    await page.evaluate(() => window.triggerAutoScroll && window.triggerAutoScroll());
+
+    // Extended pause for initial scrolling
+    await new Promise(resolve => setTimeout(resolve, 500));  // adjust as needed
+
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+
+        // Move the cursor to the start of the line (Cmd + Left Arrow)
+        await page.keyboard.down('Meta'); // 'Meta' is the Command key
+        await page.keyboard.press('ArrowLeft');
+        await page.keyboard.up('Meta');
+
+        // Type each line individually
+        await page.keyboard.type(line, options);
+
+        // Simulate pressing Enter to move to the next line, except for the last line
+        if (i < lines.length - 1) {
+            await page.keyboard.press('Enter');
+        }
+
+        // Wait a bit after each line
+        await new Promise(resolve => setTimeout(resolve, 200));  // adjust as needed
+    }
+
+    // Trigger any further scrolling after typing
+    await page.evaluate(() => window.triggerAutoScroll && window.triggerAutoScroll());
+
+    // Setup a maximum wait time for scrolling
+    const maxWaitTime = 5000; // 5 seconds, adjust if needed
+    const startTime = Date.now();
+
+    // Wait for the scrolling to complete or timeout
+    while (await page.evaluate(() => window.isScrolling) && Date.now() - startTime < maxWaitTime) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+    }
+}
+
 
 
 
